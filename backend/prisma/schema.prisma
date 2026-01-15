@@ -1,0 +1,172 @@
+// Prisma schema for Giftsbattle
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  telegramId    String    @unique
+  username      String?
+  firstName     String?
+  lastName      String?
+  balance       Int       @default(0)
+  tickets       Int       @default(0)
+  level         Int       @default(1)
+  xp            Int       @default(0)
+  referralCode  String    @unique @default(uuid())
+  referredBy    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  inventory     Item[]
+  caseOpenings  CaseOpening[]
+  upgrades      Upgrade[]
+  crafts        Craft[]
+  referrals     Referral[]  @relation("UserReferrals")
+  referrer      User?       @relation("UserReferrals", fields: [referredBy], references: [id])
+
+  @@index([telegramId])
+  @@index([referralCode])
+}
+
+model Case {
+  id            String    @id @default(uuid())
+  name          String
+  slug          String    @unique
+  description   String?
+  price         Int
+  ticketPrice   Int?      
+  category      String    
+  xpBonus       Int       @default(0)
+  image         String
+  isActive      Boolean   @default(true)
+  limitedCount  Int?      
+  soldCount     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  items         CaseItem[]
+  openings      CaseOpening[]
+
+  @@index([category])
+  @@index([isActive])
+}
+
+model Item {
+  id            String    @id @default(uuid())
+  name          String
+  description   String?
+  image         String
+  rarity        String    
+  value         Int
+  isNFT         Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id])
+  
+  caseItems     CaseItem[]
+  craftInputs   CraftInput[]
+  upgradedFrom  Upgrade[] @relation("UpgradeFrom")
+  upgradedTo    Upgrade[] @relation("UpgradeTo")
+
+  @@index([userId])
+  @@index([rarity])
+}
+
+model CaseItem {
+  id            String    @id @default(uuid())
+  caseId        String
+  case          Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  itemId        String
+  item          Item      @relation(fields: [itemId], references: [id])
+  dropChance    Float     
+
+  @@unique([caseId, itemId])
+  @@index([caseId])
+}
+
+model CaseOpening {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  caseId        String
+  case          Case      @relation(fields: [caseId], references: [id])
+  wonItemId     String
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([caseId])
+  @@index([createdAt])
+}
+
+model Upgrade {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  fromItemId    String
+  fromItem      Item      @relation("UpgradeFrom", fields: [fromItemId], references: [id])
+  toItemId      String?
+  toItem        Item?     @relation("UpgradeTo", fields: [toItemId], references: [id])
+  multiplier    Int       
+  success       Boolean
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Craft {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  resultItemId  String
+  createdAt     DateTime  @default(now())
+  
+  inputs        CraftInput[]
+
+  @@index([userId])
+}
+
+model CraftInput {
+  id            String    @id @default(uuid())
+  craftId       String
+  craft         Craft     @relation(fields: [craftId], references: [id], onDelete: Cascade)
+  itemId        String
+  item          Item      @relation(fields: [itemId], references: [id])
+
+  @@index([craftId])
+}
+
+model Referral {
+  id            String    @id @default(uuid())
+  referrerId    String
+  referrer      User      @relation("UserReferrals", fields: [referrerId], references: [id])
+  referredId    String
+  bonus         Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  @@unique([referrerId, referredId])
+  @@index([referrerId])
+}
+
+model Contest {
+  id            String    @id @default(uuid())
+  title         String
+  description   String
+  startDate     DateTime
+  endDate       DateTime
+  prizePool     Int
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([isActive])
+  @@index([startDate, endDate])
+}
